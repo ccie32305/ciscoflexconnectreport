@@ -1,24 +1,4 @@
 #!/usr/bin/perl
-# ciscoflexconnectreport.pl - v0.1
-#
-# Git repository available at https://github.com/ccie32305/ciscoflexconnectreport
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-# Donate via twitter @ccie32305
-#
-
 use Net::SSH::Expect;
 use Net::SMTP;
 use Getopt::Long qw(GetOptions);
@@ -37,8 +17,8 @@ GetOptions('from=s' => \$frommail,
 if ($frommail && $wlc && $user && $pass && $smtpip && $tomail) {
 my $ssh = Net::SSH::Expect->new (
  host => $wlc,
-  raw_pty => 1
-  );
+ raw_pty => 1
+);
 
 #  print ("Getting into WLC...\n");
   $ssh->run_ssh() or die "SSH process couldn't start: $!";
@@ -67,7 +47,8 @@ while($wlan =~ /([^\n]+)\n?/g){
 #######################
 # Getting AP count Access-Points
 #
-$ssh->send("config paging disable");
+#
+$ssh->send(" config paging disable\n");
 $ssh->waitfor('>', 3) or die "prompt 'Cisco Controller' not found";
 my $ap = $ssh->exec("show ap summary");
 my @ap = split(/\n/, $ap);
@@ -89,9 +70,11 @@ my $count = 9;
 splice @ap, 0, $count;
 splice @ap, -3;
 foreach $line (@ap) {
+#	print $line."\n";
         my (@apnames) = split /\s{2,}/, $line;
 	$apconfig[$i] = $ssh->exec("show ap config general ".@apnames[0]);
 	$i++;
+#	print @apnames[0]."\n";
 }
 
 
@@ -111,14 +94,17 @@ $i++;
 #print "Flexconnect AP\n";
 $apname = substr($string,index($string,"AP Name")+44,35);
 $apname2 = substr($apname,0,index($apname,"Country")-1);
-$flexconnectdata[$i][0] = $apname2;
-
+$flexconnectgroup = substr($string,index($string,"FlexConnect Group...")+50,100);
+$flexconnectgroup2 = substr($flexconnectgroup,0,index($flexconnectgroup,"Group VLAN ACL")-1);
+$apgroupname = substr($string,index($string,"Cisco AP Group Name")+50,120);
+$apgroupname2 = substr($apgroupname,0,index($apgroupname,"Primary")-1);
+$flexconnectdata[$i][0] = $apname2." (".$apgroupname2."/ ".$flexconnectgroup2.")";
+#print $$flexconnectdata[$i][0]."\n";
 #
 # Retrieve Flexconnect VLANs
 #
 $string = substr($string,index($string,"Native ID :"));
 $string = substr($string,0,index($string,"FlexConnect VLAN ACL"));
-
 my @lines = split /\n/, $string;
 foreach my $line (@lines) {
 #$i++;
@@ -141,11 +127,11 @@ $flexconnectdata[$i][$wlanidstring] = $wlanidvlan;
  }
  else
  {
- print "No Flexconnect AP\n";
+# print "No Flexconnect AP\n";
 }
 
 }
-$html = "\n<html><table><tr>";
+$html = "\n<html><table border=1><tr>";
 foreach $ssid (@ssids) {
 $html = $html."<TD>".$ssid."</TD>";
 }
